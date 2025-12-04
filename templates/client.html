@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket客户端 - {{user_id}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .user-details h1 {
+            font-size: 1.5rem;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .connection-status {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .disconnected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .chat-container {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.9);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 70%;
+            padding: 15px;
+            border-radius: 18px;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background: #f3f4f6;
+            border-bottom-left-radius: 5px;
+            margin-right: auto;
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+            margin-left: auto;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .message-content {
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 15px;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            resize: none;
+            min-height: 60px;
+            max-height: 120px;
+        }
+        
+        .message-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .send-button {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            width: 60px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .online-users {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .online-users h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .users-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .user-tag {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .system-message {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9rem;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 10px 15px;
+            background: #f3f4f6;
+            border-radius: 18px;
+            align-self: flex-start;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .typing-indicator.visible {
+            opacity: 1;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #9ca3af;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                height: calc(100vh - 20px);
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+            
+            .input-area {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-info">
+                <div class="avatar">{{ user_id[:2].upper() }}</div>
+                <div class="user-details">
+                    <h1>{{ user_id }}</h1>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>在线</span>
+                    </div>
+                </div>
+            </div>
+            <div id="connectionStatus" class="connection-status">连接中...</div>
+        </div>
+        
+        <div class="chat-container">
+            <div id="messages" class="messages">
+                <div class="system-message" id="welcomeMessage">
+                    正在连接到服务器...
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" 
+                       id="targetUser" 
+                       placeholder="目标用户ID" 
+                       style="flex: 0.3; padding: 15px; border: 2px solid #e5e7eb; border-radius: 12px;">
+                <textarea 
+                    id="messageInput" 
+                    class="message-input" 
+                    placeholder="输入消息... (按Ctrl+Enter发送)"
+                    rows="1"></textarea>
+                <button id="sendButton" class="send-button" disabled>
+                    📤
+                </button>
+            </div>
+        </div>
+        
+        <div class="online-users">
+            <h3>👥 在线用户</h3>
+            <div id="usersList" class="users-list">
+                <div class="user-tag">{{ user_id }} (我)</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        class WebSocketClient {
+            constructor(userId) {
+                this.userId = userId;
+                this.ws = null;
+                this.connected = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectDelay = 1000;
+                
+                this.init();
+            }
+            
+            init() {
+                this.connect();
+                this.bindEvents();
+            }
+            
+            connect() {
+                const wsUrl = `{{ ws_url }}`;
+                this.ws = new WebSocket(wsUrl);
+                
+                this.ws.onopen = () => this.onOpen();
+                this.ws.onmessage = (event) => this.onMessage(event);
+                this.ws.onclose = () => this.onClose();
+                this.ws.onerror = (error) => this.onError(error);
+            }
+            
+            onOpen() {
+                console.log('WebSocket连接已建立');
+                this.connected = true;
+                this.reconnectAttempts = 0;
+                
+                // 发送认证消息
+                const authMessage = {
+                    type: 'auth',
+                    data: {
+                        user_id: this.userId,
+                        token: 'demo-token'
+                    },
+                    timestamp: new Date().toISOString()
+                };
+                
+                this.send(authMessage);
+                this.updateConnectionStatus('connected');
+                this.addSystemMessage('✅ 已连接到服务器');
+            }
+            
+            onMessage(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('收到消息:', data);
+                    
+                    switch(data.type) {
+                        case 'connection_established':
+                            this.handleConnectionEstablished(data);
+                            break;
+                            
+                        case 'new_message':
+                            this.handleNewMessage(data);
+                            break;
+                            
+                        case 'message_receipt':
+                            this.handleMessageReceipt(data);
+                            break;
+                            
+                        case 'user_online':
+                            this.handleUserOnline(data);
+                            break;
+                            
+                        case 'user_offline':
+                            this.handleUserOffline(data);
+                            break;
+                            
+                        case 'online_users':
+                            this.handleOnlineUsers(data);
+                            break;
+                            
+                        case 'ping':
+                            this.handlePing();
+                            break;
+                            
+                        case 'error':
+                            this.handleError(data);
+                            break;
+                            
+                        default:
+                            console.log('未知消息类型:', data.type);
+                    }
+                } catch (error) {
+                    console.error('消息解析错误:', error);
+                }
+            }
+            
+            onClose() {
+                console.log('WebSocket连接已关闭');
+                this.connected = false;
+                this.updateConnectionStatus('disconnected');
+                this.addSystemMessage('❌ 连接已断开，尝试重新连接...');
+                
+                // 尝试重新连接
+                this.attemptReconnect();
+            }
+            
+            onError(error) {
+                console.error('WebSocket错误:', error);
+                this.addSystemMessage('⚠️ 连接错误');
+            }
+            
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+                    
+                    this.addSystemMessage(`尝试重新连接 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+                    
+                    setTimeout(() => {
+                        this.connect();
+                    }, delay);
+                } else {
+                    this.addSystemMessage('❌ 无法连接到服务器，请刷新页面重试');
+                }
+            }
+            
+            send(data) {
+                if (this.connected && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(data));
+                    return true;
+                }
+                return false;
+            }
+            
+            handleConnectionEstablished(data) {
+                const connectionId = data.data.connection_id;
+                this.addSystemMessage(`🆔 连接ID: ${connectionId}`);
+                
+                // 请求在线用户列表
+                this.send({
+                    type: 'get_online_users',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            handleNewMessage(data) {
+                const fromUser = data.data.from_user;
+                const content = data.data.content;
+                const timestamp = new Date(data.timestamp).toLocaleTimeString();
+                
+                this.addMessage({
+                    type: 'received',
+                    sender: fromUser,
+                    content: content,
+                    timestamp: timestamp
+                });
+                
+                // 显示通知
+                if (document.hidden) {
+                    this.showNotification(`来自 ${fromUser} 的新消息`, content);
+                }
+            }
+            
+            handleMessageReceipt(data) {
+                const status = data.data.status;
+                const targetUser = data.data.target_user;
+                
+                if (status === 'delivered') {
+                    this.addSystemMessage(`✓ 消息已送达至 ${targetUser}`);
+                } else {
+                    this.addSystemMessage(`✗ 消息发送失败至 ${targetUser}`);
+                }
+            }
+            
+            handleUserOnline(data) {
+                const user = data.data.user_id;
+                if (user !== this.userId) {
+                    this.addSystemMessage(`👤 ${user} 上线了`);
+                    this.addUserToList(user);
+                }
+            }
+            
+            handleUserOffline(data) {
+                const user = data.data.user_id;
+                if (user !== this.userId) {
+                    this.addSystemMessage(`👤 ${user} 离线了`);
+                    this.removeUserFromList(user);
+                }
+            }
+            
+            handleOnlineUsers(data) {
+                const users = data.data.users || [];
+                this.updateOnlineUsersList(users);
+            }
+            
+            handlePing() {
+                // 响应心跳
+                this.send({ type: 'pong' });
+            }
+            
+            handleError(data) {
+                const message = data.data.message || '未知错误';
+                this.addSystemMessage(`❌ 错误: ${message}`);
+            }
+            
+            sendMessage(targetUser, content) {
+                if (!targetUser || !content.trim()) {
+                    return;
+                }
+                
+                const message = {
+                    type: 'send_message',
+                    data: {
+                        target_user: targetUser,
+                        content: content.trim()
+                    },
+                    timestamp: new Date().toISOString(),
+                    message_id: `web_${Date.now()}`
+                };
+                
+                if (this.send(message)) {
+                    // 本地显示发送的消息
+                    this.addMessage({
+                        type: 'sent',
+                        sender: this.userId,
+                        content: content.trim(),
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                    
+                    // 清空输入框
+                    document.getElementById('messageInput').value = '';
+                    this.adjustTextareaHeight();
+                } else {
+                    this.addSystemMessage('发送失败，请检查连接');
+                }
+            }
+            
+            addMessage({ type, sender, content, timestamp }) {
+                const messagesDiv = document.getElementById('messages');
+                const messageDiv = document.createElement('div');
+                
+                messageDiv.className = `message ${type}`;
+                messageDiv.innerHTML = `
+                    <div class="message-header">
+                        <span class="sender">${sender}</span>
+                        <span class="time">${timestamp}</span>
+                    </div>
+                    <div class="message-content">${this.escapeHtml(content)}</div>
+                `;
+                
+                messagesDiv.appendChild(messageDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+            
+            addSystemMessage(text) {
+                const messagesDiv = document.getElementById('messages');
+                const systemDiv = document.createElement('div');
+                
+                systemDiv.className = 'system-message';
+                systemDiv.textContent = text;
+                
+                messagesDiv.appendChild(systemDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+            
+            addUserToList(user) {
+                const usersList = document.getElementById('usersList');
+                const existing = Array.from(usersList.children).some(
+                    child => child.textContent.includes(user)
+                );
+                
+                if (!existing && user !== this.userId) {
+                    const userTag = document.createElement('div');
+                    userTag.className = 'user-tag';
+                    userTag.textContent = user;
+                    userTag.onclick = () => {
+                        document.getElementById('targetUser').value = user;
+                    };
+                    usersList.appendChild(userTag);
+                }
+            }
+            
+            removeUserFromList(user) {
+                const usersList = document.getElementById('usersList');
+                Array.from(usersList.children).forEach(child => {
+                    if (child.textContent === user) {
+                        child.remove();
+                    }
+                });
+            }
+            
+            updateOnlineUsersList(users) {
+                const usersList = document.getElementById('usersList');
+                usersList.innerHTML = `<div class="user-tag">${this.userId} (我)</div>`;
+                
+                users.forEach(user => {
+                    if (user !== this.userId) {
+                        this.addUserToList(user);
+                    }
+                });
+            }
+            
+            updateConnectionStatus(status) {
+                const statusDiv = document.getElementById('connectionStatus');
+                const sendButton = document.getElementById('sendButton');
+                
+                if (status === 'connected') {
+                    statusDiv.textContent = '已连接';
+                    statusDiv.classList.remove('disconnected');
+                    sendButton.disabled = false;
+                } else {
+                    statusDiv.textContent = '连接断开';
+                    statusDiv.classList.add('disconnected');
+                    sendButton.disabled = true;
+                }
+            }
+            
+            showNotification(title, body) {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(title, { body });
+                }
+            }
+            
+            bindEvents() {
+                // 请求通知权限
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
+                
+                // 发送按钮事件
+                document.getElementById('sendButton').onclick = () => {
+                    const targetUser = document.getElementById('targetUser').value.trim();
+                    const message = document.getElementById('messageInput').value.trim();
+                    this.sendMessage(targetUser, message);
+                };
+                
+                // 输入框按键事件
+                document.getElementById('messageInput').onkeydown = (e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        const targetUser = document.getElementById('targetUser').value.trim();
+                        const message = document.getElementById('messageInput').value.trim();
+                        this.sendMessage(targetUser, message);
+                    }
+                    
+                    // 自动调整高度
+                    this.adjustTextareaHeight();
+                };
+                
+                // 页面可见性变化
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        // 页面变为可见时，可以执行一些操作
+                    }
+                });
+            }
+            
+            adjustTextareaHeight() {
+                const textarea = document.getElementById('messageInput');
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+        
+        // 页面加载完成后初始化客户端
+        document.addEventListener('DOMContentLoaded', () => {
+            const userId = '{{ user_id }}';
+            window.wsClient = new WebSocketClient(userId);
+        });
+    </script>
+</body>
+</html>
